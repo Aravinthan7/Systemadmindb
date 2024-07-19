@@ -1,0 +1,554 @@
+#create database
+create database systemadminapp;
+#using systemadminapp database
+use systemadminapp;
+
+# create table for user table
+-- Create table usertable(
+-- id int auto_increment,
+-- primary key(id),
+-- doi varchar(200),
+-- employeeid varchar(150),
+-- employeename varchar(200),
+-- department varchar(200),
+-- company varchar(200),
+-- priority varchar(200),
+-- domain varchar(200),
+-- mail varchar(150),
+-- location varchar(200),
+-- srcompleteddate varchar(200),
+-- assetno varchar(200),
+-- serialno varchar(200),
+-- aseetypemodel varchar(200),
+-- softwaredetails int,
+-- assetticketavail boolean,
+-- remarks varchar(200),
+-- itpersonalincharge json not null,
+-- user json not null,
+-- departmenthead json not null,
+-- hrincharge json not null,
+-- sessionid varchar(100),
+-- passwordfld varchar(200)
+-- );
+
+-- drop table usertable;
+-- alter table usertable add passwordfld varchar(200);
+select * from usertable;
+
+
+create table assettable(
+id int  auto_increment,primary key(id),
+assetid varchar(30),
+grpname varchar(100),
+slno varchar(100),
+owntype varchar(100),
+company varchar(100),
+statustyp varchar(100),
+assetdescrp varchar(100),
+process varchar(100),
+gen varchar(100),
+ram varchar(100),
+hdd varchar(100),
+makedescrp varchar(100),
+empid varchar(100),
+username varchar(100),
+dept varchar(100),
+loc varchar(100),
+remarks varchar(200),
+purchasevendor varchar(100),
+purchasedate varchar(100),
+warrantydate varchar(100),
+warrantystatus varchar(100)
+);
+#usertable
+create table  usertable(id int auto_increment not null,
+username varchar(50),
+email varchar(50),
+password varchar(30),
+pimage varchar(500),
+role varchar(30),
+addinfo varchar(500),
+userid varchar(50),
+systemno varchar(60),
+sessionid varchar(100),
+sessiontime datetime,
+primary key(id)
+);
+
+# create table for totalassettable
+create table totalassettable(id  int auto_increment,primary key(id),cpu varchar(25),processor varchar(25),ram varchar(25),mouse varchar(25),os varchar(25),monitor varchar(25),monitorcompany varchar(25),allocated bool);
+select * from totalassettable;
+
+# create table for querytable
+create table querytable(id int auto_increment,
+primary key(id),
+queries varchar(200),
+userid varchar(25),
+querytype varchar(25),
+opendate date,
+closedate date,
+processtype varchar(25));
+##------
+
+# create table for movementtable
+
+create table movementtable(id int auto_increment,primary key(id),
+type varchar(100),
+imacno varchar(100),
+datecol date,
+assetno varchar(100),
+empid varchar(100),
+empname varchar(100),
+dept varchar(100),
+location varchar(100),
+companies varchar(100),
+assettyp varchar(100),
+model varchar(100),
+assetstickeravial varchar(100),
+remarks varchar(100),
+serialno varchar(100),
+softinstalled varchar(100),
+ithead varchar(100),
+depthead varchar(100),
+hrincharge varchar(100),
+returned varchar(100)
+);
+
+
+
+
+
+
+
+#stored procedure 
+
+
+#Signup sp
+Delimiter $$
+Create procedure Signup_sp(
+in pusername varchar(30),
+in pemail varchar(30),
+in ppassword varchar(30),
+in ppimage varchar(500),
+in prole varchar(100),
+in paddinfo varchar(500),
+in puserid varchar(500),
+in psystemno varchar(500),
+in psessionid varchar(500)
+)
+Begin
+DECLARE user_count INT;
+select count(*) into user_count  from  usertable  where email=pemail;
+ if user_count>0 then
+   SIGNAL SQLSTATE '45000'
+ SET MESSAGE_TEXT = 'Username or email already exists';
+else
+	Insert into usertable (username,email,password,pimage,role,addinfo,userid,systemno,sessionid) values(pusername,pemail,ppassword,ppimage,prole,paddinfo,puserid,psystemno,psessionid);
+	-- You can perform additional actions here, like sending a confirmation email
+        -- Return success message
+        SELECT 'Signup successful' AS message;
+end if; 
+END $$
+Delimiter $$
+#----
+
+
+
+
+#login stored procedure
+Delimiter $$
+Create procedure Login_sp(
+in puserid varchar(30),
+in ppassword varchar(300)
+
+)
+Begin
+DECLARE user_count INT;
+select count(*) into user_count  from  usertable  where userid=puserid AND password=ppassword;
+if user_count=1 then
+    -- set pmessage='Login Sucessful';
+    select * from usertable where  userid=puserid AND password=ppassword;
+else
+   
+   select 'Invalid UserID/Password ';
+    
+end if;
+END $$
+Delimiter ; 
+
+
+
+
+#check the session
+DELIMITER $$
+CREATE PROCEDURE Checksession_sp(
+    IN puserid VARCHAR(25)
+    
+)
+BEGIN
+    DECLARE current_datetime DATETIME;
+    DECLARE sdt DATETIME;
+    declare session_valid Boolean;
+
+    -- Get the session time for the given user
+    SELECT sessiontime INTO sdt FROM usertable WHERE userid = puserid;
+
+    -- Get the current datetime
+    SET current_datetime = NOW();
+
+    -- Check if the current datetime is within the session time window
+    IF sdt IS NOT NULL AND sdt BETWEEN DATE_SUB(current_datetime, INTERVAL 12 HOUR) AND DATE_ADD(current_datetime, INTERVAL 12 HOUR) THEN
+        SET session_valid = True;
+        select session_valid;
+    ELSE
+        SET session_valid = false;
+         select session_valid;
+    END IF;
+END$$
+DELIMITER ;
+#-----
+
+
+
+##update session
+DELIMITER $$
+CREATE PROCEDURE update_sessionid_sp(
+    IN p_userid VARCHAR(30),
+    In p_uuid varchar(35)
+    -- OUT p_success BOOLEAN
+)
+BEGIN
+    DECLARE v_pk INT;
+    declare p_success BOOLEAN ;
+    
+    -- Select the primary key of the row to be updated
+    SELECT id INTO v_pk FROM usertable WHERE userid = p_userid LIMIT 1;
+    
+    -- Update the session ID using the primary key
+    UPDATE usertable SET sessionid = p_uuid,sessiontime=NOW() WHERE id = v_pk ;
+    
+    -- Set p_success based on whether the update affected any rows
+    IF ROW_COUNT() > 0 THEN
+        SET p_success = TRUE;
+        select p_success;
+    ELSE
+        SET p_success = FALSE;
+        select p_success;
+    END IF;
+END$$
+DELIMITER ;
+#----
+
+
+#Get Queries based on user id
+Delimiter $$
+create procedure Queries_sp( in puserid varchar(30))
+begin
+
+declare roletyp varchar(30);
+
+select role into roletyp from usertable where userid=puserid limit 1;
+
+IF roletyp='admin'then
+	select * from querytable;
+else
+    select * from querytable where userid=puserid;
+end if;
+end $$
+Delimiter ; 
+
+-- ----
+
+#Insert Queries based on user id
+delimiter $$
+create procedure InsertQuery_sp(
+IN pqueries varchar(300),
+IN puserid varchar(20),
+IN pquerytyp varchar(30),
+IN popendate Date,
+IN pclosedate Date,
+IN pprocess varchar(30)
+)
+begin
+Declare Message varchar(30);
+DECLARE exit handler for sqlexception
+begin
+ Set Message='Insert failed';
+ select Message;
+end ;
+Insert into querytable (queries,userid,querytype,opendate,closedate,processtype)
+ values(pqueries,puserid,pquerytyp,popendate,pclosedate,pprocess);
+ Set Message='Inserted Successfully';
+ select Message;
+ 
+end $$
+delimiter ;
+call InsertQuery_sp('newqueries','ore049','high','2024-04-03','2024-04-03','inprogress')
+select * from querytable
+#-------
+# delete query logic
+delimiter $$
+create procedure DeleteQuries_sp(in pid int)
+begin
+Declare Message varchar(30);
+DECLARE exit handler for sqlexception
+begin
+ Set Message='Delete Failed';
+ select Message;
+end ;
+ delete  from querytable where id=pid;
+ Set Message='Deleted Successfuly';
+ select Message;
+end $$
+delimiter ;
+-- ------
+#update queries based on userid
+delimiter $$
+create procedure UpdateQueries_sp(
+in pid int,
+in puserid varchar(300),
+in pprocess varchar(30),
+in pclosedate date,
+in pquerytype varchar(30)
+)
+begin
+Declare Message varchar(30);
+DECLARE exit handler for sqlexception
+begin
+ Set Message='Update Failed';
+ select Message;
+end ;
+update  querytable set processtype=pprocess , closedate=pclosedate,querytype=pquerytype where  id=pid and puserid=userid;
+Set Message='Update Success';
+ select Message;
+end $$
+delimiter ;
+#-------
+drop procedure UpdateQueries_sp;
+#procedure for edit user
+delimiter $$
+create procedure Updateuser_sp(
+in pid int,
+in puserid varchar(200),
+in pusername varchar(200),
+in pemail varchar(200),
+in ppassword varchar(200),
+in ppimage varchar(200),
+in prole varchar(200),
+in paddinfo varchar(500),
+in psystemno varchar(200)
+)
+begin
+Declare Message varchar(30);
+DECLARE exit handler for sqlexception
+begin
+ Set Message='Delete Failed';
+ select Message;
+end ;
+update usertable set username=pusername,email=pemail,password=ppassword,role=prole,addinfo=paddinfo,systemno=psystemno where  id=pid and userid=puserid;
+Set Message='Update Success';
+ select Message;
+end $$
+delimiter ;
+
+#-------
+
+
+#procedure for delete user
+delimiter $$
+create procedure deleteuser_sp(
+in pid int,
+in puserid varchar(200)
+)
+begin 
+Declare Message varchar(30);
+DECLARE exit handler for sqlexception
+begin
+ Set Message='Delete Failed';
+ select Message;
+end ;
+delete  from usertable where id=pid and userid=puserid;
+Set Message='Delete Success';
+ select Message;
+end $$
+delimiter ;
+#----
+
+#asset table procedure
+
+#insert asset sp
+delimiter $$
+create procedure InsertAsset_sp(
+in passetid varchar(100),
+in pgrpname varchar(100),
+in pslno varchar(100),
+in powntype varchar(100),
+in pcompany varchar(100),
+in pstatustyp varchar(100),
+in passetdescrp varchar(200),
+in pprocess varchar(100),
+in pgen varchar(100),
+in pram varchar(100),
+in phdd varchar(100),
+in pmakedescrp varchar(100),
+in pempid varchar(100),
+in pusername varchar(100),
+in pdept varchar(100),
+in ploc varchar(100),
+in premarks varchar(300),
+in ppurchasevendor varchar(200),
+in ppurchasedate varchar(100),
+in pwarrantydate varchar(100),
+in pwarrantystatus varchar(100)
+)
+begin
+
+Declare Message varchar(30);
+DECLARE exit handler for sqlexception
+begin
+ Set Message='Insert Failed';
+ select Message;
+end ;
+Insert into assettable (assetid,grpname,slno,owntype,company,statustyp,assetdescrp,process,gen,ram,hdd,makedescrp,empid,username,dept,loc,remarks,purchasevendor,purchasedate,warrantydate,warrantystatus) 
+values(passetid,pgrpname,pslno,powntype,pcompany,pstatustyp,passetdescrp,pprocess,pgen,pram,phdd,pmakedescrp,pempid,pusername,pdept,ploc,premarks,ppurchasevendor,ppurchasedate,pwarrantydate,pwarrantystatus);
+end $$
+delimiter ; 
+
+#update assettable
+delimiter $$
+create procedure UpdateAsset_sp(
+in pid int,
+in passetid varchar(100),
+in pgrpname varchar(100),
+in pslno varchar(100),
+in powntype varchar(100),
+in pcompany varchar(100),
+in pstatustyp varchar(100),
+in passetdescrp varchar(200),
+in pprocess varchar(100),
+in pgen varchar(100),
+in pram varchar(100),
+in phdd varchar(100),
+in pmakedescrp varchar(100),
+in pempid varchar(100),
+in pusername varchar(100),
+in pdept varchar(100),
+in ploc varchar(100),
+in premarks varchar(300),
+in ppurchasevendor varchar(200),
+in ppurchasedate varchar(100),
+in pwarrantydate varchar(100),
+in pwarrantystatus varchar(100)
+)
+Begin
+Declare Message varchar(30);
+DECLARE exit handler for sqlexception
+begin
+ Set Message='Update Failed';
+ select Message;
+end ;
+update assettable set assetid=passetid,grpname=pgrpname,owntype=powntype,company=pcompany,statustyp=pstatustyp,assetdescrp=passetdecrp,process=pprocess,gen=pgen,ram=pram,hdd=phdd,makedescrp=pmakedescrp,empid=pempid,username=pusername,dept=pdept,loc=ploc,remarks=premarks,purchasevendor=ppurchasevendor,purchasedate=ppurchasedate,warrantydate=pwarrantydate,warrantystatus=pwarrantystatus where id=pid and slno=pslno ;
+ Set Message='Updated Successfully';
+ select Message;
+ End $$
+delimiter ;
+#------
+
+#delete asset
+delimiter $$
+create procedure DeleteAsset_sp(
+in pid int,
+in pslno varchar(100)
+)
+Begin
+Declare Message varchar(30);
+DECLARE exit handler for sqlexception
+begin
+ Set Message='Delete Failed';
+ select Message;
+end ;
+delete from assettable where id=pid and slno=pslno;
+Set Message='Deleted Successfully';
+ select Message;
+End $$
+delimiter ;
+#----
+
+
+select * from assettable;
+select * from querytable;
+
+
+Delimiter $$
+create procedure InsertMovement_sp(
+   in ptype varchar(200),
+   in pimacno varchar(200),
+   in pdatecol date,
+   in passetno varchar(100),
+   in pempid varchar(100),
+   in pempname varchar(100),
+   in pdept varchar(100),
+   in plocation varchar(100),
+   in pcompanies varchar(100),
+   in passettyp varchar(100),
+   in pmodel varchar(100),
+   in passetstickeravial varchar(100),
+   in premarks varchar(100),
+   in pserialno varchar(100),
+   in psoftinstalled varchar(100),
+   in pithead varchar(100),
+   in pdepthead varchar(100),
+   in phrincharge varchar(100),
+   in preturned varchar(100)
+)
+Begin
+Declare Message varchar(30);
+DECLARE exit handler for sqlexception
+begin
+ Set Message='Insert failed';
+ select Message;
+end ;
+Insert into movementtable (type,imacno,datecol,assetno,empid,empname,dept,location,companies,assettyp,model,assetstickeravial,remarks,serialno,softinstalled,ithead,depthead,hrincharge,returned) values(ptype,pimacno,pdatecol,passetno,pempid,pdept,plocation,pcompanies,passettyp,pmodel,passetstickeravial,premarks,pserialno,psoftinstalled,pithead,pdepthead,phrincharge,preturned);
+ Set Message='Inserted Successfully';
+ select Message;
+End$$
+Delimiter ;
+
+Delimiter $$
+create procedure DeleteMovement_sp(
+  in  pid int
+)
+Begin
+Declare Message varchar(30);
+DECLARE exit handler for sqlexception
+begin
+Set Message='Delete failed';
+ select Message;
+end;
+delete from movementtable where id=pid;
+set Message="Deleted Successfully";
+End$$
+Delimiter ;
+
+Delimiter $$
+ create procedure GetAsset_sp()
+ Begin
+ select * from assettable; 
+ End $$
+ Delimiter ;z
+ 
+ 
+drop procedure InsertMovement_sp;
+#----
+
+Delimiter $$
+ create procedure GetMovement_sp(
+ in pserialno varchar(200)
+ )
+ Begin
+ select * from movementtable where serialno=pserialno;
+ End $$
+ Delimiter ;
+
+
+
